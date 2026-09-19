@@ -1,5 +1,7 @@
 # OKO Yocto 6.0 workspace
 
+**To download already built image - navigate to https://oko.satisfanly.com**
+
 This workspace builds two headless x86-64 deliverables with Yocto 6.0
 Wrynose:
 
