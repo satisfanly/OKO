@@ -1,0 +1,105 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: OKO <noreply@localhost>
+Date: Wed, 16 Sep 2026 12:00:00 +0200
+Subject: [PATCH] ryzen_smu: serialize all sysfs userspace operations
+
+Add one global mutex around every userspace-facing sysfs show/store
+callback.  This prevents two sysfs callbacks from executing in the driver
+at the same time, including PM-table reads, SMU command submission,
+SMU-argument access, and SMN access.
+
+The current ryzen_smu driver exposes sysfs attributes rather than a
+character-device file_operations interface, so there are no driver-level
+open(), read(), write(), or ioctl() handlers to wrap.  sysfs read/write
+requests enter the driver through the show/store callbacks wrapped here.
+
+Signed-off-by: OKO <noreply@localhost>
+Upstream-Status: Inappropriate [OKO specific]
+---
+ a/drv.c | 59 +++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 53 insertions(+), 6 deletions(-)
+
+--- a/drv.c
++++ b/drv.c
+@@ -11,6 +11,7 @@
+ #include <linux/kobject.h>
+ #include <linux/sysfs.h>
+ #include <uapi/linux/stat.h>
++#include <linux/mutex.h>
+ #include <linux/version.h>
+ 
+ #include "smu.h"
+@@ -50,13 +51,52 @@
+     #error "Unsupported kernel version. Minimum: v4.19"
+ #endif
+ 
++/*
++ * Serialize every userspace-facing operation through one global lock.
++ *
++ * ryzen_smu currently exposes its userspace ABI through sysfs.  sysfs
++ * read(2)/write(2) requests arrive here as ->show()/->store() callbacks;
++ * the driver has no character-device ->open()/->ioctl() entry points.
++ *
++ * Keep this as a mutex rather than a spinlock: several SMU operations can
++ * sleep and may take a non-trivial amount of time to complete.
++ */
++static DEFINE_MUTEX(userspace_mutex);
++
++#define __SERIALIZED_SHOW(attr) \
++    static ssize_t attr##_show_serialized(struct kobject *kobj, \
++                                          struct kobj_attribute *kattr, \
++                                          char *buff) \
++    { \
++        ssize_t ret; \
++        mutex_lock(&userspace_mutex); \
++        ret = attr##_show(kobj, kattr, buff); \
++        mutex_unlock(&userspace_mutex); \
++        return ret; \
++    }
++
++#define __SERIALIZED_STORE(attr) \
++    static ssize_t attr##_store_serialized(struct kobject *kobj, \
++                                           struct kobj_attribute *kattr, \
++                                           const char *buff, size_t count) \
++    { \
++        ssize_t ret; \
++        mutex_lock(&userspace_mutex); \
++        ret = attr##_store(kobj, kattr, buff, count); \
++        mutex_unlock(&userspace_mutex); \
++        return ret; \
++    }
++
+ #define __RO_ATTR(attr) \
++    __SERIALIZED_SHOW(attr) \
+     static struct kobj_attribute dev_attr_##attr = \
+-        __ATTR(attr, S_IRUSR | S_IRGRP | S_IROTH, attr##_show, attr_store_null);
+-
++        __ATTR(attr, S_IRUSR | S_IRGRP | S_IROTH, attr##_show_serialized, attr_store_null_serialized);
+ #define __RW_ATTR(attr) \
++    __SERIALIZED_SHOW(attr) \
++    __SERIALIZED_STORE(attr) \
+     static struct kobj_attribute dev_attr_##attr = \
+-        __ATTR(attr, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, attr##_show, attr##_store);
++        __ATTR(attr, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, \
++               attr##_show_serialized, attr##_store_serialized);
+ 
+ static struct ryzen_smu_data {
+     struct pci_dev*         device;
+@@ -94,6 +134,17 @@
+     return 0;
+ }
+ 
++static ssize_t attr_store_null_serialized(struct kobject *kobj,
++                                          struct kobj_attribute *attr,
++                                          const char *buff, size_t count)
++{
++    ssize_t ret;
++    mutex_lock(&userspace_mutex);
++    ret = attr_store_null(kobj, attr, buff, count);
++    mutex_unlock(&userspace_mutex);
++    return ret;
++}
++
+ static ssize_t drv_version_show(struct kobject *kobj, struct kobj_attribute *attr, char *buff) {
+     return sprintf(buff, "%s\n", THIS_MODULE->version);
+ }

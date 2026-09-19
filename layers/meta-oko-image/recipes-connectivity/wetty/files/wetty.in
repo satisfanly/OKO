@@ -1,0 +1,4 @@
+#!/bin/sh
+export NODE_ENV=production
+exec /usr/bin/node "@LIBDIR@/wetty/build/main.js" "$@"
+

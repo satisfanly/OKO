@@ -1,0 +1,16 @@
+[submodule "poky/bitbake"]
+	path = poky/bitbake
+	url = https://git.openembedded.org/bitbake
+	branch = 2.18
+[submodule "poky/openembedded-core"]
+	path = poky/openembedded-core
+	url = https://git.openembedded.org/openembedded-core
+	branch = wrynose
+[submodule "layers/meta-yocto"]
+	path = layers/meta-yocto
+	url = https://git.yoctoproject.org/meta-yocto
+	branch = wrynose
+[submodule "layers/meta-openembedded"]
+	path = layers/meta-openembedded
+	url = https://git.openembedded.org/meta-openembedded
+	branch = wrynose

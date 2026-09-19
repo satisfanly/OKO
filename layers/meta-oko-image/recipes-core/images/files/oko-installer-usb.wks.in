@@ -1,0 +1,19 @@
+# Copyright 2026 Satisfanly Ltd
+#
+# OKO OS is a product of Satisfanly Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at:
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+part /boot --source bootimg_biosplusefi --sourceparams="loader=grub-efi,loader-bios=syslinux,title=OKO Installer" --ondisk sda --fstype=vfat --label OKO_BOOT --active --align 1024 --use-uuid --fsoptions="ro"
+part / --source rootfs --ondisk sda --fstype=ext4 --label OKO_INSTALL --align 1024 --use-uuid
+bootloader --ptable gpt --timeout=3 --append="ro rootwait roottimeout=30 rootfstype=ext4 console=tty0 console=ttyS0,115200n8"

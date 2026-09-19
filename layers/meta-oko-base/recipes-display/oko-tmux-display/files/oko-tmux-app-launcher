@@ -1,0 +1,53 @@
+#!/bin/sh
+# Copyright 2026 Satisfanly Ltd
+#
+# OKO OS is a product of Satisfanly Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at:
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -eu
+
+socket=/run/oko-tmux-display/tmux.sock
+session=oko-main
+
+cleanup() {
+    /usr/bin/tmux -S "${socket}" kill-server >/dev/null 2>&1 || true
+    rm -f -- "${socket}"
+}
+
+trap 'exit 0' HUP INT TERM
+trap cleanup EXIT
+
+if [ -S "${socket}" ]; then
+    /usr/bin/tmux -S "${socket}" kill-server >/dev/null 2>&1 || true
+    rm -f -- "${socket}"
+fi
+
+# /usr/libexe/oko-tmux-app installed by layers above, according to it needs
+/usr/bin/tmux \
+    -f /etc/oko-tmux-display.tmux.conf \
+    -S "${socket}" \
+    new-session -d -s "${session}" /usr/libexec/oko-tmux-app
+
+# Verify that the tmux server/session is actually available.
+/usr/bin/tmux -S "${socket}" has-session -t "${session}"
+
+# Only NOW tell systemd that oko-tmux-app.service is ready.
+/usr/bin/systemd-notify --ready
+
+while /usr/bin/tmux -S "${socket}" has-session -t "${session}" \
+        >/dev/null 2>&1; do
+    sleep 1
+done
+
+exit 1

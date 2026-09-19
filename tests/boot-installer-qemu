@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+oko_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+oko_iso="${1:-${oko_root}/env/genericx86-64/tmp/deploy/images/genericx86-64/oko-installer-image-genericx86-64.rootfs.wic}"
+oko_disk="${2:-${oko_root}/env/genericx86-64/qemu-installer-test.qcow2}"
+
+if [[ ! -s "${oko_iso}" ]]; then
+    echo "ISO not found: ${oko_iso}" >&2
+    exit 2
+fi
+
+if [[ ! -e "${oko_disk}" ]]; then
+    qemu-img create -f qcow2 "${oko_disk}" 64G
+fi
+
+# hostfwd will forward 3000 to firs assigned address
+exec qemu-system-x86_64 \
+    -m 2048 -smp 2 -enable-kvm \
+    -drive "file=${oko_iso},format=raw" \
+    -drive "file=${oko_disk},format=qcow2" \
+    -netdev user,id=net0,hostfwd=tcp::3000-:3000,hostfwd=tcp::3022-:22 \
+    -device virtio-net-pci,netdev=net0,mac=00:12:CC:CC:AA:AA \
+    -display vnc=127.0.0.1:0 -serial mon:stdio

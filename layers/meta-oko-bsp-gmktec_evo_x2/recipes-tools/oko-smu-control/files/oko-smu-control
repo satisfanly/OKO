@@ -1,0 +1,307 @@
+#!/bin/sh
+# Copyright 2026 Satisfanly Ltd
+#
+# OKO OS is a product of Satisfanly Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at:
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#
+# OKO EVO-X2 SMU + fan controller
+#
+# SMU:
+#   STAPM      = 120 W
+#   PPT Fast   = 140 W
+#   PPT Slow   = 120 W
+#   APU PPT    = 90 W
+#   Tctl limit = 98 C
+#
+# Fans:
+#   >= 70 C -> fixed 100%
+#   <= 65 C -> firmware auto
+#   65..69 C -> retain previous state
+#
+# Both SMU and fan policy are periodically reasserted in case
+# firmware/platform logic overwrites them.
+#
+
+RYZENADJ="/usr/bin/ryzenadj"
+
+EC_BASE="/sys/class/ec_su_axb35"
+TEMP_PATH="${EC_BASE}/temp1/temp"
+
+FANS="
+${EC_BASE}/fan1
+${EC_BASE}/fan2
+${EC_BASE}/fan3
+"
+
+#
+# Fan thresholds.
+#
+FAN_ON_TEMP=90
+FAN_AUTO_TEMP=85
+
+#
+# Polling / reapply intervals in seconds.
+#
+FAN_INTERVAL=1
+SMU_INTERVAL=5
+
+#
+# RyzenAdj SMU settings.
+#
+STAPM_LIMIT=120000
+FAST_LIMIT=140000
+SLOW_LIMIT=120000
+APU_SLOW_LIMIT=90000
+TCTL_TEMP=98
+
+
+log()
+{
+    echo "oko-smu-control: $*"
+}
+
+
+apply_smu()
+{
+    "$RYZENADJ" \
+        --stapm-limit="$STAPM_LIMIT" \
+        --fast-limit="$FAST_LIMIT" \
+        --slow-limit="$SLOW_LIMIT" \
+        --apu-slow-limit="$APU_SLOW_LIMIT" \
+        --tctl-temp="$TCTL_TEMP" \
+        >/dev/null 2>&1
+}
+
+
+set_fans_max()
+{
+    result=0
+
+    for fan in $FANS; do
+        if [ ! -d "$fan" ]; then
+            result=1
+            continue
+        fi
+
+        echo fixed > "$fan/mode" 2>/dev/null || result=1
+        echo 5 > "$fan/level" 2>/dev/null || result=1
+    done
+
+    return "$result"
+}
+
+
+set_fans_auto()
+{
+    result=0
+
+    for fan in $FANS; do
+        if [ ! -d "$fan" ]; then
+            result=1
+            continue
+        fi
+
+        echo auto > "$fan/mode" 2>/dev/null || result=1
+    done
+
+    return "$result"
+}
+
+
+ec_ready()
+{
+    [ -r "$TEMP_PATH" ] || return 1
+
+    for fan in $FANS; do
+        [ -w "$fan/mode" ] || return 1
+        [ -w "$fan/level" ] || return 1
+    done
+
+    return 0
+}
+
+
+restore_firmware_fans()
+{
+    log "returning fans to firmware automatic control"
+
+    for fan in $FANS; do
+        [ -w "$fan/mode" ] || continue
+        echo auto > "$fan/mode" 2>/dev/null || true
+    done
+}
+
+
+cleanup()
+{
+    restore_firmware_fans
+}
+
+#
+# SIGTERM / Ctrl+C -> exit cleanly.
+# EXIT trap then restores firmware fan control.
+#
+trap 'exit 0' INT TERM HUP
+trap cleanup EXIT
+
+
+#
+# Wait until RyzenAdj/ryzen_smu is functional.
+#
+while ! apply_smu; do
+    log "SMU not ready, retrying..."
+    sleep 1
+done
+
+log "SMU policy active:"
+log "  STAPM=${STAPM_LIMIT} mW"
+log "  FAST=${FAST_LIMIT} mW"
+log "  SLOW=${SLOW_LIMIT} mW"
+log "  APU=${APU_SLOW_LIMIT} mW"
+log "  Tctl=${TCTL_TEMP} C"
+
+
+#
+# Wait for ec_su_axb35.
+#
+while ! ec_ready; do
+    log "AXB35 EC interface not ready, retrying..."
+    sleep 1
+done
+
+log "fan policy active:"
+log "  >= ${FAN_ON_TEMP} C -> 100%"
+log "  <= ${FAN_AUTO_TEMP} C -> firmware auto"
+
+
+#
+# Determine initial fan state.
+#
+temp="$(cat "$TEMP_PATH" 2>/dev/null)"
+
+case "$temp" in
+    ''|*[!0-9]*)
+        #
+        # Cannot trust temperature -> fail safe.
+        #
+        fan_state="max"
+        set_fans_max
+        log "invalid initial temperature '$temp': fans -> 100%"
+        ;;
+
+    *)
+        if [ "$temp" -ge "$FAN_ON_TEMP" ]; then
+            fan_state="max"
+            set_fans_max
+            log "initial temperature ${temp} C: fans -> 100%"
+        else
+            #
+            # If service starts in the hysteresis zone (65..69 C),
+            # use normal firmware control until 70 C is reached.
+            #
+            fan_state="auto"
+            set_fans_auto
+            log "initial temperature ${temp} C: fans -> firmware auto"
+        fi
+        ;;
+esac
+
+
+smu_counter=0
+
+while true; do
+
+    #
+    # Read current APU temperature.
+    #
+    temp="$(cat "$TEMP_PATH" 2>/dev/null)"
+
+    case "$temp" in
+        ''|*[!0-9]*)
+            #
+            # Temperature sensor failure:
+            # use maximum cooling as fail-safe.
+            #
+            if [ "$fan_state" != "max" ]; then
+                fan_state="max"
+                log "temperature read failed: fans -> 100% fail-safe"
+            fi
+            ;;
+
+        *)
+            #
+            # Hysteresis:
+            #
+            # >=70 -> maximum
+            # <=65 -> firmware automatic
+            # 66..69 -> keep current state
+            #
+            if [ "$temp" -ge "$FAN_ON_TEMP" ]; then
+
+                if [ "$fan_state" != "max" ]; then
+                    fan_state="max"
+                    log "temperature ${temp} C >= ${FAN_ON_TEMP} C: fans -> 100%"
+                fi
+
+            elif [ "$temp" -le "$FAN_AUTO_TEMP" ]; then
+
+                if [ "$fan_state" != "auto" ]; then
+                    fan_state="auto"
+                    log "temperature ${temp} C <= ${FAN_AUTO_TEMP} C: fans -> firmware auto"
+                fi
+
+            fi
+            ;;
+    esac
+
+
+    #
+    # Reassert fan state EVERY iteration.
+    #
+    # This is intentional: if EC/platform firmware changes the mode,
+    # we take control back on the next 1-second poll.
+    #
+    case "$fan_state" in
+        max)
+            if ! set_fans_max; then
+                log "failed to reassert maximum fan speed"
+            fi
+            ;;
+
+        auto)
+            if ! set_fans_auto; then
+                log "failed to reassert firmware automatic fan control"
+            fi
+            ;;
+    esac
+
+
+    #
+    # Reassert RyzenAdj policy every SMU_INTERVAL seconds.
+    #
+    smu_counter=$((smu_counter + FAN_INTERVAL))
+
+    if [ "$smu_counter" -ge "$SMU_INTERVAL" ]; then
+
+        if ! apply_smu; then
+            log "failed to reapply SMU policy"
+        fi
+
+        smu_counter=0
+    fi
+
+
+    sleep "$FAN_INTERVAL"
+done
