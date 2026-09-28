@@ -15,12 +15,11 @@
 # limitations under the License.
 
 SUMMARY = "High-performance LLM inference in pure C/C++"
-HOMEPAGE = "https://github.com/satisfanly/oko-llama.cpp"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=223b26b3c1143120c87e2b13111d3e99"
 
 SRC_URI = "https://github.com/satisfanly/oko-llama.cpp"
-SRCREV = "dc1534b8cfe2602afee6f289bea5d42c207f7b98"
+SRCREV = "41d391eefa837ecd2b2164deebbaada95ced2186"
 PV = "1.0+git"
 
 inherit cmake pkgconfig

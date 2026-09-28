@@ -1,0 +1,19 @@
+[server]
+host = "0.0.0.0"
+port = 11436
+
+[logging]
+level = "info"
+format = "console"
+
+[[providers]]
+name = "main"
+provider = "ollama"
+base_url = "http://127.0.0.1:11435/v1"
+enabled = true
+
+[[providers]]
+name = "embeddings"
+provider = "ollama"
+base_url = "http://127.0.0.1:12435/v1"
+enabled = true

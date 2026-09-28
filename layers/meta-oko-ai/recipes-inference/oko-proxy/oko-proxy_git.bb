@@ -21,10 +21,12 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 SRC_URI = " \
     https://github.com/satisfanly/oko-proxy \
     file://oko-ai-proxy.service \
+    file://oko-ai-proxy-embed.service \
     file://oko-ai-proxy-stream.service \
     file://oko-ai-proxy-openai.service \
+    file://oko-ai-proxy-router.service \
 "
-SRCREV = "4973f6e0ad4c49b93232abb028f3238d3013433f"
+SRCREV = "cbd09052c4b09cd735b017d9cf3a496721e7cd7c"
 PV = "1.0+git"
 
 inherit python3native systemd
@@ -34,6 +36,8 @@ SYSTEMD_SERVICE:${PN} = " \
     oko-ai-proxy-openai.service \
     oko-ai-proxy-stream.service \
     oko-ai-proxy.service \
+    oko-ai-proxy-embed.service \
+    oko-ai-proxy-router.service \
 "
 SYSTEMD_AUTO_ENABLE:${PN} = "enable"
 
@@ -52,8 +56,17 @@ do_install() {
     install -m 0755 ${S}/ollama_proxy_llama.py \
         ${D}${bindir}/oko-ai-proxy
 
+    install -m 0755 ${S}/ollama_proxy_llama_embed.py \
+        ${D}${bindir}/oko-ai-proxy-embed
+
+    install -m 0755 ${S}/ollama_router.py \
+        ${D}${bindir}/oko-ai-proxy-router
+
     install -m 0755 ${S}/ollama_proxy.py \
         ${D}${bindir}/oko-extern-chain-simple-noloop
+
+    install -m 0755 ${S}/ollama_proxy_crossctx.py \
+        ${D}${bindir}/oko-extern-chain-crossctx-noloop
 
     install -m 0755 ${S}/ollama_proxy_stream.py \
         ${D}${bindir}/oko-ai-proxy-stream
@@ -71,5 +84,11 @@ do_install() {
         ${D}${systemd_system_unitdir}/
 
     install -m 0644 ${UNPACKDIR}/oko-ai-proxy.service \
+        ${D}${systemd_system_unitdir}/
+
+    install -m 0644 ${UNPACKDIR}/oko-ai-proxy-embed.service \
+        ${D}${systemd_system_unitdir}/
+
+    install -m 0644 ${UNPACKDIR}/oko-ai-proxy-router.service \
         ${D}${systemd_system_unitdir}/
 }

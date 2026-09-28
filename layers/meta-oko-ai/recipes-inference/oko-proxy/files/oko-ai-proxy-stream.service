@@ -19,7 +19,7 @@ Description=OKO AI Proxy (stream converting)
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/oko-ai-proxy-stream --upstream http://127.0.0.1:11435 --host 0.0.0.0 --port 11434
+ExecStart=/usr/bin/oko-ai-proxy-stream --upstream http://127.0.0.1:11436 --host 0.0.0.0 --port 11434
 Restart=on-failure
 RestartSec=2
 User=admin

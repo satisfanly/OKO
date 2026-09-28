@@ -1,0 +1,13 @@
+[Unit]
+Description=OKO AI Proxy routing
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/oko-ai-proxy-router --listen 0.0.0.0:11436 --endpoints 127.0.0.1:11435 127.0.0.1:12435 --rediscover-interval 30 --discovery-timeout 120 --timeout 43200
+Restart=on-failure
+RestartSec=2
+User=admin
+
+[Install]
+WantedBy=multi-user.target
+

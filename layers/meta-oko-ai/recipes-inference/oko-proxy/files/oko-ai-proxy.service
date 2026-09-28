@@ -21,10 +21,12 @@ ConditionPathExists=/home/admin/oko-ai.yaml
 [Service]
 Type=simple
 WorkingDirectory=/home/admin/
-ExecStart=/usr/bin/oko-ai-proxy -l 127.0.0.1:11435 -c ./oko-ai.yaml
+ExecStart=/usr/bin/oko-ai-proxy -l 127.0.0.1:11435 -c ./oko-ai.yaml --full-llama-responses-log /var/log/oko-ai-llama-responses/responses.log
 Restart=on-failure
 RestartSec=2
 User=admin
+LogsDirectory=oko-ai-external-chain oko-ai-llama-responses
+LogsDirectoryMode=0755
 
 [Install]
 WantedBy=multi-user.target

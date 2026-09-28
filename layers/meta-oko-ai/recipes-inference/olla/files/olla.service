@@ -1,0 +1,12 @@
+[Unit]
+Description=Olla LLM Router
+
+[Service]
+ExecStart=/usr/bin/olla \
+    --config /etc/olla/config.yaml
+
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

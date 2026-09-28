@@ -1,0 +1,13 @@
+[Unit]
+Description=LLM Router
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/llmrouter --config /etc/llmrouter/config.toml server
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

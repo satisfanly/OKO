@@ -721,15 +721,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--auto",
         action="store_true",
-        help="parse oko-ai.yaml and download every referenced GGUF that is missing",
+        help="parse oko-ai.yaml and oko-ai-embed.yaml and download every referenced GGUF that is missing",
     )
     parser.add_argument(
         "--config",
-        default="~/oko-ai.yaml",
+        default=None,
         metavar="FILE",
-        help="OKO runner YAML used by --auto (default: ~/oko-ai.yaml)",
+        help="OKO runner YAML used by --auto (default: ~/oko-ai.yaml and ~/oko-ai-embed.yaml)",
     )
-    parser.add_argument("--models-root", default="~/models", metavar="DIR", help="models directory (default: ~/models)")
+    parser.add_argument("--models-root", default=None, metavar="DIR", help="models directory (default: ~/models or ~/models-embed)")
     parser.add_argument("--force", action="store_true", help="download again even if destination exists")
     parser.add_argument("--no-mmproj", action="store_true", help="do not auto-download mmproj companion files")
     parser.add_argument("--no-mtp", action="store_true", help="do not auto-download MTP/FastMTP companion files")
@@ -741,6 +741,8 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
     try:
+        if args.models_root is None:
+            args.models_root = "~/models"
         models_root = Path(args.models_root).expanduser().resolve()
 
         if args.auto:
@@ -748,8 +750,22 @@ def main() -> int:
                 parser.error("URL cannot be used together with --auto")
             if args.no_mmproj or args.no_mtp:
                 parser.error("--no-mmproj and --no-mtp are only valid in URL mode")
-            config_path = Path(args.config).expanduser().resolve()
-            auto_download_from_config(config_path, models_root, args.force)
+
+            configs = []
+            if args.config is not None:
+                configs.append((Path(args.config).expanduser().resolve(), models_root))
+            else:
+                configs.append((Path("~/oko-ai.yaml").expanduser().resolve(), models_root))
+                configs.append((Path("~/oko-ai-embed.yaml").expanduser().resolve(), Path("~/models-embed").expanduser().resolve()))
+
+            for config_path, target_root in configs:
+                if not config_path.exists():
+                    print(f"Config not found, skipping: {config_path}")
+                    continue
+                print(f"\n{'=' * 60}")
+                print(f"Processing: {config_path}")
+                print(f"{'=' * 60}")
+                auto_download_from_config(config_path, target_root, args.force)
             return 0
 
         if args.url is None:

@@ -1,0 +1,85 @@
+server:
+  host: "0.0.0.0"
+  port: 11436
+
+  read_timeout: 30s
+  read_header_timeout: 10s
+  write_timeout: 0s
+  shutdown_timeout: 10s
+  request_logging: true
+
+proxy:
+  engine: "olla"
+  profile: "auto"
+  load_balancer: "least-connections"
+
+  response_timeout: 12h
+  read_timeout: 12h
+  response_header_timeout: 12h
+
+  sticky_sessions:
+    enabled: false
+
+  retry:
+    enabled: true
+    on_connection_failure: true
+    max_attempts: 0
+
+discovery:
+  type: "static"
+  refresh_interval: 30s
+
+  health_check:
+    initial_delay: 1s
+
+  static:
+    endpoints:
+      # Main Ollama server.
+      - url: "http://127.0.0.1:11435"
+        name: "ollama-main"
+        type: "ollama"
+        model_url: "/api/tags"
+        health_check_url: "/"
+        check_interval: 30s
+        check_timeout: 20s
+
+      # Your llama-server -> Ollama embedding compatibility proxy.
+      - url: "http://127.0.0.1:12435"
+        name: "ollama-embed"
+        type: "ollama"
+        model_url: "/api/tags"
+        health_check_url: "/"
+        check_interval: 30s
+        check_timeout: 20s
+
+  model_discovery:
+    enabled: true
+    interval: 30s
+    timeout: 20s
+    concurrent_workers: 5
+    retry_attempts: 3
+    retry_backoff: 1s
+
+model_registry:
+  type: "memory"
+  enable_unifier: true
+
+  unification:
+    enabled: true
+
+  stale_threshold: 24h
+  cleanup_interval: 10m
+
+  # Only route a request to a backend that advertises the requested model.
+  routing_strategy:
+    type: "strict"
+    options:
+      fallback_behavior: "none"
+      discovery_timeout: 2s
+      discovery_refresh_on_miss: true
+
+logging:
+  level: "info"
+  format: "text"
+  output: "stdout"
+

@@ -1,0 +1,15 @@
+[Unit]
+Description=OKO AI Proxy for embeddings models
+ConditionPathExists=/home/admin/oko-ai-embed.yaml
+
+[Service]
+Type=simple
+WorkingDirectory=/home/admin/
+ExecStart=/usr/bin/oko-ai-proxy-embed -l 127.0.0.1:12435 -c ./oko-ai-embed.yaml
+Restart=on-failure
+RestartSec=2
+User=admin
+
+[Install]
+WantedBy=multi-user.target
+
