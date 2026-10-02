@@ -19,14 +19,14 @@ LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
 SRC_URI = " \
-    https://github.com/satisfanly/oko-proxy \
+    git://github.com/satisfanly/oko-proxy;protocol=https;branch=master \
     file://oko-ai-proxy.service \
     file://oko-ai-proxy-embed.service \
     file://oko-ai-proxy-stream.service \
     file://oko-ai-proxy-openai.service \
     file://oko-ai-proxy-router.service \
 "
-SRCREV = "cbd09052c4b09cd735b017d9cf3a496721e7cd7c"
+SRCREV = "cd378fea4fe3bd9c0e66fa10bd2ef4b2e4a10e0d"
 PV = "1.0+git"
 
 inherit python3native systemd

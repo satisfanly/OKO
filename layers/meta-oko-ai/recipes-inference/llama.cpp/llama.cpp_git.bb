@@ -18,8 +18,8 @@ SUMMARY = "High-performance LLM inference in pure C/C++"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=223b26b3c1143120c87e2b13111d3e99"
 
-SRC_URI = "https://github.com/satisfanly/oko-llama.cpp"
-SRCREV = "41d391eefa837ecd2b2164deebbaada95ced2186"
+SRC_URI = "git://github.com/satisfanly/oko-llama.cpp;protocol=https;branch=dev/satisfanly"
+SRCREV = "8aa2fe92c7dc0fdd657095569508148702eb5b2d"
 PV = "1.0+git"
 
 inherit cmake pkgconfig
