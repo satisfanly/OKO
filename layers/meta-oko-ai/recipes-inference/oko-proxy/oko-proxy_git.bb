@@ -26,7 +26,7 @@ SRC_URI = " \
     file://oko-ai-proxy-openai.service \
     file://oko-ai-proxy-router.service \
 "
-SRCREV = "cd378fea4fe3bd9c0e66fa10bd2ef4b2e4a10e0d"
+SRCREV = "b324973913e50299e3e054ccfa5570179d6ada40"
 PV = "1.0+git"
 
 inherit python3native systemd

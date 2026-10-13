@@ -19,7 +19,7 @@ LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=223b26b3c1143120c87e2b13111d3e99"
 
 SRC_URI = "git://github.com/satisfanly/oko-llama.cpp;protocol=https;branch=dev/satisfanly"
-SRCREV = "8aa2fe92c7dc0fdd657095569508148702eb5b2d"
+SRCREV = "9cc5327d4ccf9b1822ed20a6f20afc4ed569d3fa"
 PV = "1.0+git"
 
 inherit cmake pkgconfig
@@ -71,7 +71,7 @@ EXTRA_OECMAKE += " \
 # Critical:
 # Don't build the default CMake "all" target.
 #
-OECMAKE_TARGET_COMPILE = "llama-server"
+OECMAKE_TARGET_COMPILE = "llama-server llama-bench"
 
 #
 # Don't invoke upstream's complete `cmake --install`, because that install
@@ -80,8 +80,15 @@ OECMAKE_TARGET_COMPILE = "llama-server"
 #
 do_install() {
     install -d ${D}${bindir}
+
     install -m 0755 ${B}/bin/llama-server \
         ${D}${bindir}/llama-server
+
+    install -m 0755 ${B}/bin/llama-bench \
+        ${D}${bindir}/llama-bench
 }
 
-FILES:${PN} = "${bindir}/llama-server"
+FILES:${PN} = " \
+    ${bindir}/llama-server \
+    ${bindir}/llama-bench \
+"
